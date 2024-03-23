@@ -72,8 +72,12 @@ public class CostsController {
     }
 
     @PostMapping("/payment-cards-cost")
-    public CountryCost paymentCardCost(@Valid @RequestBody CardData cardData) {
-        costsService.findByIIN(cardData.getIIN());
-        return new CountryCost("AA", BigDecimal.TEN);
+    public ResponseEntity<CountryCost> paymentCardCost(@Valid @RequestBody CardData cardData) {
+        CountryCost result = costsService.findByIIN(cardData.getIIN());
+        if (result == null) {
+            return ResponseEntity.notFound().build();
+        } else {
+            return ResponseEntity.ok(result);
+        }
     }
 }

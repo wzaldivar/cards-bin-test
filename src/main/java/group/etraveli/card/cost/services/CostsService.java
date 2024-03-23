@@ -2,9 +2,11 @@ package group.etraveli.card.cost.services;
 
 import group.etraveli.card.cost.models.CountryCost;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 @Service
 public class CostsService {
@@ -43,7 +45,11 @@ public class CostsService {
         String countryCode = cacheableService.findByIIN(iin);
 
         if (countryCode == null) {
-            binListService.retrieveCountryCode(iin);
+            binListService.retrieveCountryCode(iin, UUID.randomUUID().toString(), false);
+        }
+
+        if(countryCode == null){
+            return null;
         }
 
         return getByCountryCode(countryCode);

@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
@@ -76,11 +77,18 @@ public class BinListService {
         return peek.plus(REFILL_INTERVAL).isBefore(now);
     }
 
-    public String retrieveCountryCode(String iin) {
-        if (isAbleToRequest()) {
-            BinListResponse binListResponse = callExternalService(iin);
+    public String retrieveCountryCode(String iin, String correlationKey, boolean preVerified) {
+        if (preVerified || isAbleToRequest()) {
+            try {
+                BinListResponse binListResponse = callExternalService(iin);
+                return binListResponse.getCountry().getCountryCode();
+            } catch (WebClientResponseException ex) {
+                if (ex.getStatusCode() == HttpStatus.TOO_MANY_REQUESTS) {
+                    lockRequests();
+                    return retrieveCountryCode(iin, correlationKey, false);
+                }
+            }
         } else {
-            String correlationKey = UUID.randomUUID().toString();
             rabbitTemplate.convertAndSend(tasksQueue.getName(),
                     new TaskData(iin, Instant.now()),
                     message -> {
@@ -92,9 +100,9 @@ public class BinListService {
                     responsesQueue.getName(),
                     5000,
                     ParameterizedTypeReference.forType(String.class));
-        }
 
-        return null;
+            return response;
+        }
     }
 
     public BinListResponse callExternalService(String iin) {
@@ -108,7 +116,9 @@ public class BinListService {
                 .retrieve()
                 .onStatus(
                         httpStatusCode -> httpStatusCode.value() == HttpStatus.TOO_MANY_REQUESTS.value(),
-                        clientResponse -> Mono.error(new RuntimeException(""))
+                        clientResponse -> Mono.error(new WebClientResponseException(
+                                HttpStatus.TOO_MANY_REQUESTS.value(),
+                                "Requests limit exceded", null, null, null))
                 )
                 .bodyToMono(BinListResponse.class)
                 .timeout(Duration.ofSeconds(5));
@@ -123,7 +133,13 @@ public class BinListService {
             channel.basicAck(message.getMessageProperties().getDeliveryTag(), false);
 
             if (taskData.getTimeStamp().plus(Duration.ofSeconds(5)).isAfter(Instant.now())) {
-                rabbitTemplate.convertAndSend("responses_queue", "goo", response -> {
+                rabbitTemplate.convertAndSend("responses_queue", null, response -> {
+                    response.getMessageProperties().setCorrelationId(correlationKey);
+                    return response;
+                });
+            } else{
+                String countryCode = retrieveCountryCode(taskData.getIin(), correlationKey, true);
+                rabbitTemplate.convertAndSend("responses_queue", countryCode, response -> {
                     response.getMessageProperties().setCorrelationId(correlationKey);
                     return response;
                 });
