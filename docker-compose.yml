@@ -1,0 +1,28 @@
+version: '3'
+
+services:
+  db:
+    image: postgres:alpine
+    container_name: card-cost-db
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=card-cost
+    ports:
+      - 5432:5432
+
+  cache:
+    image: redis:alpine
+    container_name: card-cost-cache
+    command: --requirepass redis_password
+    ports:
+      - 6379:6379
+
+  rabbitmq:
+    image: rabbitmq:alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=user
+      - RABBITMQ_DEFAULT_PASS=password
