@@ -11,9 +11,10 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 @Repository
-public class DefaultCostRepositoryImpl implements DefaultCostRepository {
+public class CustomDefaultCostRepositoryImpl implements CustomDefaultCostRepository {
 
     static final int DEFAULT_COST_ID = 1;
 
@@ -28,10 +29,13 @@ public class DefaultCostRepositoryImpl implements DefaultCostRepository {
 
         criteriaQuery.select(root);
 
-        return manager.createQuery(criteriaQuery).setMaxResults(1).getResultStream().findFirst();
+        Stream<DefaultCost> resultStream = manager.createQuery(criteriaQuery).setMaxResults(1).getResultStream();
+
+        return resultStream.findFirst();
     }
 
     @Override
+    @Transactional
     public Optional<BigDecimal> findCost() {
         Optional<DefaultCost> defaultCost = findDefaultCost();
         return defaultCost.map(DefaultCost::getCost);

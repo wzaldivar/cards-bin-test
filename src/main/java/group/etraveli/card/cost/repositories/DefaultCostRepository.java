@@ -1,10 +1,9 @@
 package group.etraveli.card.cost.repositories;
 
-import java.math.BigDecimal;
-import java.util.Optional;
+import group.etraveli.card.cost.models.DefaultCost;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
-public interface DefaultCostRepository {
-    Optional<BigDecimal> findCost();
-
-    public BigDecimal upsertDefaultCost(BigDecimal cost);
+@Repository
+public interface DefaultCostRepository extends JpaRepository<DefaultCost, Integer>, CustomDefaultCostRepository{
 }
